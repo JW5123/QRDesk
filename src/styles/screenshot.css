@@ -1,0 +1,59 @@
+body {
+    margin: 0;
+    padding: 0;
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='21' height='21' viewBox='0 0 21 21'><path d='M10.5 0v21M0 10.5h21' stroke='white' stroke-width='3'/><path d='M10.5 0v21M0 10.5h21' stroke='black' stroke-width='1'/></svg>") 10 10, crosshair;
+    background: transparent;
+    overflow: hidden;
+    user-select: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.selection-box {
+    position: absolute;
+    border: 2px solid white;
+    background: transparent; /* 選取框內部完全透明 */
+    display: none;
+    pointer-events: none;
+    z-index: 1003;
+}
+
+/* 四個遮罩層覆蓋選取框外的區域 */
+.mask-top, .mask-bottom, .mask-left, .mask-right {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    pointer-events: none;
+    z-index: 1002;
+}
+
+.instructions {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: white;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-family: 'Microsoft JhengHei', Arial, sans-serif;
+    font-size: 14px;
+    z-index: 1004;
+    display: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* 全螢幕固定遮罩層 */
+.full-screen-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+    pointer-events: all;
+}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>選擇截圖區域</title>
+    <link rel="stylesheet" href="../../styles/screenshot.css">
+</head>
+<body>
+    <!-- 全螢幕固定遮罩 -->
+    <div class="full-screen-overlay"></div>
+    
+    <!-- 四個遮罩層，用於覆蓋選取框外的區域 -->
+    <div class="mask-top" id="maskTop"></div>
+    <div class="mask-bottom" id="maskBottom"></div>
+    <div class="mask-left" id="maskLeft"></div>
+    <div class="mask-right" id="maskRight"></div>
+    
+    <div class="instructions">
+        拖拽選擇區域，按 Enter 確認截圖，按 Escape 取消
+    </div>
+    <div class="selection-box" id="selectionBox"></div>
+    
+    <script src="screenshot-renderer.js"></script>
+</body>
+</html>

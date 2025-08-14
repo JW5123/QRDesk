@@ -1,0 +1,51 @@
+/* 處理圖示顏色和樣式 */
+
+/* 通用圖示樣式 */
+.nav-item .icon,
+.action-icon,
+.settings-svg {
+    transition: filter 0.3s ease;
+    display: block;
+    width: 16px;
+    height: 16px;
+}
+
+/* 圖示容器基本樣式 */
+.nav-item .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.5rem;
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* 淺色主題 - 黑色圖示 */
+:root .settings-svg,
+:root .action-icon {
+    filter: brightness(0) saturate(100%);
+}
+
+/* 深色主題 - 白色圖示 */
+[data-theme="dark"] .settings-svg,
+[data-theme="dark"] .action-icon {
+    filter: brightness(0) saturate(100%) invert(1);
+}
+
+/* 系統主題跟隨 - 深色模式 */
+@media (prefers-color-scheme: dark) {
+    [data-theme="system"] .settings-svg,
+    [data-theme="system"] .action-icon {
+        filter: brightness(0) saturate(100%) invert(1);
+    }
+}
+
+/* 特殊狀態 */
+.nav-item.active .settings-svg {
+    filter: brightness(0) saturate(100%) invert(1); /* 選中狀態始終為白色 */
+}
+
+.record-actions .action-btn:active .action-icon,
+.record-actions .action-btn:focus .action-icon {
+    filter: brightness(0) saturate(100%) invert(0.5) sepia(1) hue-rotate(180deg); /* 按下狀態特效 */
+}

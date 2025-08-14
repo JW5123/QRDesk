@@ -1,0 +1,87 @@
+{
+  "name": "qrdesk",
+  "version": "1.0.0",
+  "productName": "QR Desk",
+  "description": "QR Code screenshot tool",
+  "main": "src/main/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JW5123/QRDesk.git"
+  },
+  "keywords": [
+    "QRCode",
+    "Screenshot",
+    "electron"
+  ],
+  "author": "Jay Wang <Jay2002714@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JW5123/QRDesk/issues"
+  },
+  "homepage": "https://github.com/JW5123/QRDesk#readme",
+  "devDependencies": {
+    "electron-builder": "^26.0.12",
+    "electron": "^37.2.6"
+  },
+  "dependencies": {
+    "auto-launch": "^5.0.6",
+    "canvas": "^3.1.2",
+    "electron-localshortcut": "^3.2.1",
+    "electron-store": "^10.1.0",
+    "flatpickr": "^4.6.13",
+    "jimp": "^1.6.0",
+    "jsqr": "^1.4.0",
+    "node-notifier": "^10.0.1",
+    "qrcode-reader": "^1.0.4",
+    "robotjs": "^0.6.0",
+    "screenshot-desktop": "^1.15.1",
+    "sharp": "^0.34.3",
+    "uuid": "^11.1.0"
+  },
+  "build": {
+    "appId": "com.qrcode.test",
+    "productName": "QR Desk",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "src/assets"
+    },
+    "win": {
+      "icon": "src/assets/icon.png",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "mac": {
+      "icon": "src/assets/icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "icon": "src/assets/icon.png",
+      "target": [
+        "AppImage",
+        "deb",
+        "zip"
+      ],
+      "category": "Utility",
+      "fpm": [
+        "--chown",
+        "root:root"
+      ],
+      "maintainer": "Jay Wang <Jay2002714@gmail.com>"
+    }
+  }
+}
