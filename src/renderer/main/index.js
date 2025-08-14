@@ -619,7 +619,38 @@ class QRCodeApp {
 }
 
 // 初始化應用程式
-const app = new QRCodeApp();
+document.addEventListener('DOMContentLoaded', () => {
+    window.i18n.detectAndLoadLocale().then(() => {
+        applyTranslations();
+        window.app = new QRCodeApp();
+    });
+});
 
-// 全域方法供 HTML 調用
-window.app = app;
+function applyTranslations() {
+    const t = window.i18n.t;
+    // 標題
+    document.getElementById('title').textContent = t('title');
+    document.getElementById('sidebar-title').textContent = t('title');
+    document.getElementById('nav-home').textContent = t('home');
+    document.getElementById('nav-settings').textContent = t('settings');
+    document.getElementById('scan-records-title').textContent = t('scanRecords');
+    document.getElementById('start-scan').textContent = t('startScan');
+    document.getElementById('search-input').setAttribute('placeholder', t('searchPlaceholder'));
+    document.getElementById('date-range').setAttribute('placeholder', t('dateRangePlaceholder'));
+    document.getElementById('clear-filter').textContent = t('clearFilter');
+    document.getElementById('settings-title').textContent = t('settings');
+    document.getElementById('auto-launch-title').textContent = t('autoLaunchTitle');
+    document.getElementById('auto-launch-label').textContent = t('autoLaunchLabel');
+    document.getElementById('exit-to-tray-title').textContent = t('exitToTrayTitle');
+    document.getElementById('exit-to-tray-label').textContent = t('exitToTrayLabel');
+    document.getElementById('shortcut-setting-title').textContent = t('shortcutSetting');
+    document.getElementById('screenshot-shortcut-label').textContent = t('screenshotShortcut');
+    document.getElementById('theme-setting-title').textContent = t('themeSetting');
+    document.getElementById('theme-system').textContent = t('themeSystem');
+    document.getElementById('theme-light').textContent = t('themeLight');
+    document.getElementById('theme-dark').textContent = t('themeDark');
+    document.getElementById('reset-settings-label').textContent = t('resetSettings');
+    document.getElementById('delete-all-records-label').textContent = t('deleteAllRecords');
+    document.getElementById('dialog-confirm-label').textContent = t('dialogConfirm');
+    document.getElementById('dialog-cancel-label').textContent = t('dialogCancel');
+}
