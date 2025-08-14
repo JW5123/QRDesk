@@ -19,7 +19,7 @@ const SCREENSHOT_CONFIG = {
 };
 
 const APP_CONFIG = {
-    APP_NAME: 'QR Code 掃描工具',
+    APP_NAME: 'QR Desktop',
     VERSION: '1.0.0'
 };
 

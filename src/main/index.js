@@ -10,14 +10,17 @@ class QRCodeApp {
         this.dataStore = new DataStore();
         this.windowManager = new WindowManager(this.dataStore);
         this.screenshotHandler = new ScreenshotHandler(this.windowManager, this.dataStore);
-        this.trayManager = new TrayManager(this.windowManager, this.dataStore);
+        this.trayManager = null; // Will be initialized async
         this.settingsManager = new SettingsManager(this.dataStore);
         
         this.isQuitting = false;
     }
 
     async initialize() {
-        // 實作單例模式 - 確保只有一個應用程式實例執行
+        // Initialize tray manager asynchronously
+        this.trayManager = new TrayManager(this.windowManager, this.dataStore);
+        
+        // Implement singleton pattern - ensure only one app instance runs
         const gotTheLock = app.requestSingleInstanceLock();
 
         if (!gotTheLock) {

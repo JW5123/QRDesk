@@ -1,6 +1,51 @@
-const { Notification, shell } = require('electron');
+const { Notification, shell, app } = require('electron');
+const path = require('path');
+const fs = require('fs');
 
 class NotificationService {
+    constructor() {
+        this.translations = {};
+        this.currentLocale = 'en';
+        this.loadLocale();
+    }
+
+    async loadLocale() {
+        // Detect system locale
+        const locale = app.getLocale();
+        const supportedLocales = {
+            'zh-TW': 'zh-TW',
+            'zh-HK': 'zh-TW', 
+            'zh-CN': 'zh-CN',
+            'en': 'en',
+            'en-US': 'en',
+            'en-GB': 'en',
+            'ja': 'ja',
+            'ja-JP': 'ja'
+        };
+        
+        this.currentLocale = supportedLocales[locale] || (locale.split('-')[0] in supportedLocales ? supportedLocales[locale.split('-')[0]] : 'en');
+        
+        try {
+            const localeFile = path.join(__dirname, '..', 'locales', `${this.currentLocale}.json`);
+            const data = fs.readFileSync(localeFile, 'utf8');
+            this.translations = JSON.parse(data);
+        } catch (error) {
+            console.error('Failed to load locale file:', error);
+            // Fallback to English
+            try {
+                const localeFile = path.join(__dirname, '..', 'locales', 'en.json');
+                const data = fs.readFileSync(localeFile, 'utf8');
+                this.translations = JSON.parse(data);
+            } catch (fallbackError) {
+                console.error('Failed to load fallback locale:', fallbackError);
+                this.translations = {};
+            }
+        }
+    }
+
+    t(key) {
+        return this.translations[key] || key;
+    }
     showSuccess(title, body, url = null) {
         this.showNotification(title, body, url);
     }
@@ -11,7 +56,7 @@ class NotificationService {
 
     showNotification(title, body, url = null) {
         if (!Notification.isSupported()) {
-            console.log('系統不支援通知功能');
+            console.log(this.t('notificationNotSupported') || 'Notification not supported');
             console.log(`${title}: ${body}`);
             return;
         }
@@ -24,7 +69,7 @@ class NotificationService {
         if (url && this.isValidUrl(url)) {
             const fullUrl = url.startsWith('www.') ? 'https://' + url : url;
             notification.on('click', () => {
-                console.log('開啟連結:', fullUrl);
+                console.log(this.t('openingLink') || 'Opening link:', fullUrl);
                 shell.openExternal(fullUrl);
             });
         }

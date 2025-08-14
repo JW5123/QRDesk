@@ -14,12 +14,12 @@ class QRCodeApp {
     async init() {
         this.setupEventListeners();
         this.setupDatePicker();
-    localStorage.removeItem('tempTheme'); // 啟動時清除暫存主題
-    await this.loadSettings(false); // 程式啟動只用正式設定
+        localStorage.removeItem('tempTheme'); // Clear temp theme on startup
+        await this.loadSettings(false); // Use formal settings only on app startup
         await this.loadScanRecords();
         this.updateTheme();
         
-        // 監聽來自主進程的事件
+        // Listen for events from main process
         this.setupIpcListeners();
     }
 
@@ -89,16 +89,17 @@ class QRCodeApp {
     }
 
     setupSettingsListeners() {
-        // 刪除所有紀錄
+        // Delete all records
         document.getElementById('clear-records').addEventListener('click', async () => {
+            const t = window.i18n.t;
             const confirmed = await this.showCustomDialog(
-                '刪除所有紀錄',
-                '確定要刪除所有掃描紀錄嗎？此操作無法復原！'
+                t('deleteAllRecords'),
+                t('confirmDeleteAll')
             );
             if (confirmed) {
                 await window.electronAPI.clearScanRecords();
                 await this.loadScanRecords();
-                this.showNotification('所有紀錄已刪除', 'success');
+                this.showNotification(t('allRecordsDeleted'), 'success');
             }
         });
         // 主題變更（即時生效）
@@ -121,11 +122,12 @@ class QRCodeApp {
             await window.electronAPI.updateExitToTray(e.target.checked);
         });
 
-        // 重設設定
+        // Reset settings
         document.getElementById('reset-settings').addEventListener('click', async () => {
+            const t = window.i18n.t;
             const confirmed = await this.showCustomDialog(
-                '重設為預設值',
-                '確定要重設所有設定為預設值嗎？'
+                t('resetSettings'),
+                t('confirmResetSettings')
             );
             if (confirmed) {
                 await this.resetSettings();
@@ -139,13 +141,14 @@ class QRCodeApp {
         shortcutInput.addEventListener('click', async () => {
             if (!isCapturingShortcut) {
                 isCapturingShortcut = true;
-                shortcutInput.value = '按下快捷鍵組合...';
+                const t = window.i18n.t;
+                shortcutInput.value = t('enterShortcutCombo');
                 
-                // 暫時停用全域快捷鍵
+                // Temporarily disable global shortcuts
                 try {
                     await window.electronAPI.disableShortcut();
                 } catch (error) {
-                    console.error('停用快捷鍵失敗:', error);
+                    console.error('Failed to disable shortcut:', error);
                 }
             }
         });
@@ -192,13 +195,14 @@ class QRCodeApp {
                 shortcutInput.style.backgroundColor = '';
                 isCapturingShortcut = false;
                 
-                // 如果沒有實際輸入快捷鍵，恢復原來的設定值
-                if (shortcutInput.value === '按下快捷鍵組合...') {
+                // If no actual shortcut was entered, restore original setting value
+                const t = window.i18n.t;
+                if (shortcutInput.value === t('enterShortcutCombo')) {
                     try {
                         const settings = await window.electronAPI.getSettings();
                         shortcutInput.value = settings.shortcut || 'Alt+Shift+S';
                     } catch (error) {
-                        console.error('獲取設定失敗:', error);
+                        console.error('Failed to get settings:', error);
                         shortcutInput.value = 'Alt+Shift+S';
                     }
                 }
@@ -210,39 +214,110 @@ class QRCodeApp {
         try {
             const settings = await window.electronAPI.getSettings();
             const currentInputValue = document.getElementById('shortcut-input').value;
+            const t = window.i18n.t;
             
-            // 只有當輸入框的值與當前設定不同時，才恢復原來的快捷鍵
-            // 如果相同，就暫時不恢復，避免觸發截圖
+            // Only restore original shortcut if input value differs from current setting
+            // If same, temporarily don't restore to avoid triggering screenshot
             if (currentInputValue && currentInputValue !== settings.shortcut) {
                 await window.electronAPI.updateShortcut(settings.shortcut);
-            } else if (!currentInputValue || currentInputValue === '按下快捷鍵組合...') {
-                // 如果輸入框為空或顯示提示文字，恢復原快捷鍵
+            } else if (!currentInputValue || currentInputValue === t('enterShortcutCombo')) {
+                // If input is empty or shows placeholder text, restore original shortcut
                 await window.electronAPI.updateShortcut(settings.shortcut);
             }
-            // 如果輸入的快捷鍵與當前相同，就不恢復，避免立即觸發
+            // If entered shortcut is same as current, don't restore to avoid immediate trigger
         } catch (error) {
-            console.error('恢復快捷鍵失敗:', error);
+            console.error('Failed to restore shortcut:', error);
         }
     }
 
+    getDatePickerConfig() {
+        const locale = window.i18n.currentLocale || 'en';
+        const t = window.i18n.t;
+        
+        // Map our locale to flatpickr locale
+        const flatpickrLocaleMap = {
+            'zh-TW': 'zh_tw',
+            'zh-CN': 'zh', 
+            'en': null, // Use default English
+            'ja': 'ja'
+        };
+        
+        // Get locale-specific settings
+        const dateFormat = t('dateFormat') || 'Y/m/d';
+        const firstDayOfWeek = parseInt(t('firstDayOfWeek') || '0');
+        const flatpickrLocaleName = flatpickrLocaleMap[locale];
+        
+        // Get the actual flatpickr locale object if available
+        let flatpickrLocale = null;
+        if (flatpickrLocaleName && window.flatpickr && window.flatpickr.l10ns && window.flatpickr.l10ns[flatpickrLocaleName]) {
+            flatpickrLocale = window.flatpickr.l10ns[flatpickrLocaleName];
+        }
+        
+        return {
+            flatpickrLocale,
+            dateFormat,
+            firstDayOfWeek
+        };
+    }
+
     setupDatePicker() {
-        this.dateRangePicker = flatpickr('#date-range', {
+        const t = window.i18n.t;
+        const config = this.getDatePickerConfig();
+        
+        // Destroy existing date picker if it exists
+        if (this.dateRangePicker) {
+            try {
+                this.dateRangePicker.destroy();
+            } catch (error) {
+                console.warn('Failed to destroy existing date picker:', error);
+            }
+        }
+        
+        const datePickerOptions = {
             mode: 'range',
-            locale: 'zh_tw',
-            dateFormat: 'Y/m/d',
-            placeholder: '選擇日期範圍',
+            dateFormat: config.dateFormat,
+            placeholder: t('selectDateRange'),
             onClose: () => {
                 this.performSearch();
             }
-        });
+        };
+        
+        // Add locale configuration if available
+        if (config.flatpickrLocale) {
+            datePickerOptions.locale = {
+                ...config.flatpickrLocale,
+                firstDayOfWeek: config.firstDayOfWeek
+            };
+        } else if (config.firstDayOfWeek !== 0) {
+            // Apply first day of week even without locale
+            datePickerOptions.locale = {
+                firstDayOfWeek: config.firstDayOfWeek
+            };
+        }
+        
+        try {
+            this.dateRangePicker = flatpickr('#date-range', datePickerOptions);
+        } catch (error) {
+            console.warn('Failed to initialize flatpickr with locale, falling back to default:', error);
+            // Fallback to basic configuration
+            this.dateRangePicker = flatpickr('#date-range', {
+                mode: 'range',
+                dateFormat: 'Y/m/d',
+                placeholder: t('selectDateRange'),
+                onClose: () => {
+                    this.performSearch();
+                }
+            });
+        }
     }
 
     setupIpcListeners() {
-        // 監聽新的掃描紀錄
+        // Listen for new scan records
         window.electronAPI.onScanRecordAdded((event, record) => {
+            const t = window.i18n.t;
             this.currentRecords.unshift(record);
             this.applyCurrentFilter();
-            this.showNotification('新增掃描紀錄：' + record.data.substring(0, 50), 'success');
+            this.showNotification(t('newScanRecord') + record.data.substring(0, 50), 'success');
         });
 
         // 監聽導航到設定頁
@@ -284,8 +359,9 @@ class QRCodeApp {
             this.filteredRecords = [...this.currentRecords];
             this.renderRecords();
         } catch (error) {
-            console.error('載入掃描紀錄失敗:', error);
-            this.showNotification('載入掃描紀錄失敗', 'error');
+            const t = window.i18n.t;
+            console.error('Failed to load scan records:', error);
+            this.showNotification(t('loadRecordsFailed'), 'error');
         } finally {
             this.showLoading(false);
         }
@@ -307,8 +383,9 @@ class QRCodeApp {
             this.currentPageIndex = 0;
             this.renderRecords();
         } catch (error) {
-            console.error('搜尋失敗:', error);
-            this.showNotification('搜尋失敗', 'error');
+            const t = window.i18n.t;
+            console.error('Search failed:', error);
+            this.showNotification(t('searchFailed'), 'error');
         } finally {
             this.showLoading(false);
         }
@@ -342,7 +419,8 @@ class QRCodeApp {
         const pageRecords = this.filteredRecords.slice(startIndex, endIndex);
 
         if (pageRecords.length === 0) {
-            recordsList.innerHTML = '<div class="no-records">沒有找到掃描紀錄</div>';
+            const t = window.i18n.t;
+            recordsList.innerHTML = `<div class="no-records">${t('noRecordsFound')}</div>`;
         } else {
             recordsList.innerHTML = pageRecords.map(record => {
                 // 決定是否顯示標題
@@ -376,9 +454,10 @@ class QRCodeApp {
     }
 
     updatePaginationInfo(totalPages) {
+        const t = window.i18n.t;
         const pageInfo = document.getElementById('page-info');
         const currentPage = this.currentPageIndex + 1;
-        pageInfo.textContent = `第 ${currentPage} 頁，共 ${totalPages} 頁`;
+        pageInfo.textContent = t('pageInfo').replace('{current}', currentPage).replace('{total}', totalPages);
 
         // 更新分頁按鈕狀態
         document.getElementById('first-page').disabled = this.currentPageIndex === 0;
@@ -396,39 +475,43 @@ class QRCodeApp {
         try {
             await window.electronAPI.openUrl(url);
         } catch (error) {
-            console.error('開啟 URL 失敗:', error);
-            this.showNotification('開啟 URL 失敗', 'error');
+            const t = window.i18n.t;
+            console.error('Failed to open URL:', error);
+            this.showNotification(t('openUrlFailed'), 'error');
         }
     }
 
     async shareText(text) {
         try {
             await window.electronAPI.shareText(text);
-            this.showNotification('已複製到剪貼簿', 'success');
+            const t = window.i18n.t;
+            this.showNotification(t('copyToClipboard'), 'success');
         } catch (error) {
-            console.error('複製失敗:', error);
-            this.showNotification('複製失敗', 'error');
+            const t = window.i18n.t;
+            console.error('Copy failed:', error);
+            this.showNotification(t('copyFailed'), 'error');
         }
     }
 
     async deleteRecord(id) {
+        const t = window.i18n.t;
         const confirmed = await this.showCustomDialog(
-            '確認刪除',
-            '確定要刪除這筆掃描紀錄嗎？此操作無法復原。'
+            t('deleteRecordConfirm'),
+            t('deleteRecordMessage')
         );
         
         if (confirmed) {
             try {
                 await window.electronAPI.deleteScanRecord(id);
                 
-                // 更新本地資料
+                // Update local data
                 this.currentRecords = this.currentRecords.filter(r => r.id !== id);
                 this.applyCurrentFilter();
                 
-                this.showNotification('紀錄已刪除', 'success');
+                this.showNotification(t('recordDeleted'), 'success');
             } catch (error) {
-                console.error('刪除失敗:', error);
-                this.showNotification('刪除失敗', 'error');
+                console.error('Delete failed:', error);
+                this.showNotification(t('deleteFailed'), 'error');
             }
         }
     }
@@ -436,24 +519,25 @@ class QRCodeApp {
     async loadSettings() {
         try {
             const settings = await window.electronAPI.getSettings();
-            // 更新設定介面
+            // Update settings interface
             document.getElementById('auto-launch').checked = settings.autoLaunch;
             document.getElementById('exit-to-tray').checked = settings.exitToTray;
-            // 載入快捷鍵
+            // Load shortcuts
             document.getElementById('shortcut-input').value = settings.shortcut || 'Alt+Shift+S';
-            // 設定主題
+            // Set theme
             let themeToUse = settings.theme;
             if (arguments[0] === true) {
                 const tempTheme = localStorage.getItem('tempTheme');
                 if (tempTheme) themeToUse = tempTheme;
             } else {
-                // 每次正式載入時清除暫存主題
+                // Clear temp theme on each formal load
                 localStorage.removeItem('tempTheme');
             }
             document.querySelector(`input[name="theme"][value="${themeToUse}"]`).checked = true;
         } catch (error) {
-            console.error('載入設定失敗:', error);
-            this.showNotification('載入設定失敗', 'error');
+            const t = window.i18n.t;
+            console.error('Failed to load settings:', error);
+            this.showNotification(t('loadRecordsFailed'), 'error');
         }
     }
 
@@ -468,7 +552,7 @@ class QRCodeApp {
                 theme: document.querySelector('input[name="theme"]:checked').value
             };
 
-            // 逐個更新設定
+            // Update settings individually
             await Promise.all([
                 window.electronAPI.updateAutoLaunch(settings.autoLaunch),
                 window.electronAPI.updateExitToTray(settings.exitToTray),
@@ -476,10 +560,12 @@ class QRCodeApp {
                 window.electronAPI.updateTheme(settings.theme)
             ]);
 
-            this.showNotification('設定已儲存', 'success');
+            const t = window.i18n.t;
+            this.showNotification(t('settingsSaved'), 'success');
         } catch (error) {
-            console.error('儲存設定失敗:', error);
-            this.showNotification('儲存設定失敗', 'error');
+            const t = window.i18n.t;
+            console.error('Failed to save settings:', error);
+            this.showNotification('Failed to save settings', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -489,7 +575,7 @@ class QRCodeApp {
         try {
             this.showLoading(true);
             
-            // 重設為預設值
+            // Reset to default values
             const defaultSettings = {
                 autoLaunch: false,
                 exitToTray: true,
@@ -506,10 +592,12 @@ class QRCodeApp {
 
             await this.loadSettings();
             this.updateTheme(defaultSettings.theme);
-            this.showNotification('設定已重設為預設值', 'success');
+            const t = window.i18n.t;
+            this.showNotification(t('settingsReset'), 'success');
         } catch (error) {
-            console.error('重設設定失敗:', error);
-            this.showNotification('重設設定失敗', 'error');
+            const t = window.i18n.t;
+            console.error('Failed to reset settings:', error);
+            this.showNotification('Failed to reset settings', 'error');
         } finally {
             this.showLoading(false);
         }
@@ -529,7 +617,8 @@ class QRCodeApp {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
-        const period = date.getHours() < 12 ? '上午' : '下午';
+        const t = window.i18n.t;
+        const period = date.getHours() < 12 ? t('morning') : t('afternoon');
         const hours = String(date.getHours() % 12 || 12).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
         const seconds = String(date.getSeconds()).padStart(2, '0');
@@ -618,17 +707,22 @@ class QRCodeApp {
     }
 }
 
-// 初始化應用程式
+// Initialize application
 document.addEventListener('DOMContentLoaded', () => {
     window.i18n.detectAndLoadLocale().then(() => {
         applyTranslations();
         window.app = new QRCodeApp();
+        // Reinitialize date picker with correct locale after i18n is loaded
+        window.app.setupDatePicker();
     });
 });
 
 function applyTranslations() {
     const t = window.i18n.t;
-    // 標題
+    // Update page title
+    document.title = t('title');
+    
+    // Titles
     document.getElementById('title').textContent = t('title');
     document.getElementById('sidebar-title').textContent = t('title');
     document.getElementById('nav-home').textContent = t('home');
@@ -636,7 +730,7 @@ function applyTranslations() {
     document.getElementById('scan-records-title').textContent = t('scanRecords');
     document.getElementById('start-scan').textContent = t('startScan');
     document.getElementById('search-input').setAttribute('placeholder', t('searchPlaceholder'));
-    document.getElementById('date-range').setAttribute('placeholder', t('dateRangePlaceholder'));
+    document.getElementById('date-range').setAttribute('placeholder', t('selectDateRange'));
     document.getElementById('clear-filter').textContent = t('clearFilter');
     document.getElementById('settings-title').textContent = t('settings');
     document.getElementById('auto-launch-title').textContent = t('autoLaunchTitle');
