@@ -3,34 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="title">QR Desk</title>
+    <title>QR Desk</title>
     <link rel="stylesheet" href="../../styles/main.css">
     <link rel="stylesheet" href="../../styles/icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/zh-tw.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/zh.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/ja.min.js"></script>
 </head>
 <body>
     <div class="app-container">
         <!-- 側邊欄 -->
         <div class="sidebar">
             <div class="sidebar-header">
-                <h2 id="sidebar-title">QR Desk</h2>
+                <h2>QR Desk</h2>
             </div>
             <nav class="sidebar-nav">
                 <button class="nav-item active" data-page="home">
                     <span class="icon">
                         <img src="../../assets/house.svg" alt="主頁" class="settings-svg" width="16" height="16">
                     </span>
-                    <span id="nav-home">主頁</span>
+                    主頁
                 </button>
                 <button class="nav-item" data-page="settings">
                     <span class="icon">
                         <img src="../../assets/setting.svg" alt="設定" class="settings-svg" width="16" height="16">
                     </span>
-                    <span id="nav-settings">設定</span>
+                    設定
                 </button>
             </nav>
         </div>
@@ -40,9 +36,9 @@
             <!-- 主頁內容 -->
             <div class="page" id="home-page">
                 <div class="page-header">
-                    <h1 id="scan-records-title">掃描紀錄</h1>
+                    <h1>掃描紀錄</h1>
                     <button id="screenshot-btn" class="primary-btn">
-                        <span id="start-scan">開始掃描</span>
+                        開始掃描
                     </button>
                 </div>
 
@@ -72,7 +68,6 @@
                             <img src="../../assets/previous-back.svg" alt="上一頁" class="action-icon" width="16" height="16">
                         </button>
                         <span id="page-info" class="page-info">第 1 頁，共 1 頁</span>
-                        <!-- 只保留一個 page-info 元素 -->
                         <button id="next-page" class="page-btn">
                             <img src="../../assets/next-forward.svg" alt="下一頁" class="action-icon" width="16" height="16">
                         </button>
@@ -86,57 +81,57 @@
             <!-- 設定頁內容 -->
             <div class="page hidden" id="settings-page">
                 <div class="page-header">
-                    <h1 id="settings-title">設定</h1>
+                    <h1>設定</h1>
                 </div>
 
                 <div class="settings-section">
                     <!-- 開機啟動 -->
                     <div class="setting-group">
-                        <h3 id="auto-launch-title">開機啟動</h3>
+                        <h3>開機啟動</h3>
                         <label class="checkbox-label">
                             <input type="checkbox" id="auto-launch">
                             <span class="checkmark"></span>
-                            <span id="auto-launch-label">開機時自動啟動程式</span>
+                            開機時自動啟動程式
                         </label>
                     </div>
 
                     <!-- 退出模式 -->
                     <div class="setting-group">
-                        <h3 id="exit-to-tray-title">退出模式</h3>
+                        <h3>退出模式</h3>
                         <label class="checkbox-label">
                             <input type="checkbox" id="exit-to-tray">
                             <span class="checkmark"></span>
-                            <span id="exit-to-tray-label">關閉視窗時隱藏到系統托盤（不勾選直接退出）</span>
+                            關閉視窗時隱藏到系統托盤（不勾選直接退出）
                         </label>
                     </div>
 
                     <!-- 快捷鍵設定 -->
                     <div class="setting-group">
-                        <h3 id="shortcut-setting-title">快捷鍵設定</h3>
+                        <h3>快捷鍵設定</h3>
                         <div class="shortcut-setting">
-                            <label for="shortcut-input" id="screenshot-shortcut-label">截圖快捷鍵：</label>
+                            <label for="shortcut-input">截圖快捷鍵：</label>
                             <input type="text" id="shortcut-input" class="shortcut-input" placeholder="點擊此處並按下快捷鍵組合" readonly>
                         </div>
                     </div>
 
                     <!-- 主題設定 -->
                     <div class="setting-group">
-                        <h3 id="theme-setting-title">主題設定</h3>
+                        <h3>主題設定</h3>
                         <div class="theme-setting">
                             <label class="radio-label">
                                 <input type="radio" name="theme" value="system" checked>
                                 <span class="radio-mark"></span>
-                                <span id="theme-system">跟隨系統</span>
+                                跟隨系統
                             </label>
                             <label class="radio-label">
                                 <input type="radio" name="theme" value="light">
                                 <span class="radio-mark"></span>
-                                <span id="theme-light">淺色模式</span>
+                                淺色模式
                             </label>
                             <label class="radio-label">
                                 <input type="radio" name="theme" value="dark">
                                 <span class="radio-mark"></span>
-                                <span id="theme-dark">深色模式</span>
+                                深色模式
                             </label>
                         </div>
                     </div>
@@ -144,8 +139,8 @@
                     <!-- 操作按鈕 -->
                     <div class="setting-actions">
                         <!-- 儲存設定按鈕已移除，設定即時生效 -->
-                        <button id="reset-settings" class="secondary-btn"><span id="reset-settings-label">重設為預設值</span></button>
-                        <button id="clear-records" class="danger-btn"><span id="delete-all-records-label">刪除所有紀錄</span></button>
+                        <button id="reset-settings" class="secondary-btn">重設為預設值</button>
+                        <button id="clear-records" class="danger-btn">刪除所有紀錄</button>
                     </div>
                 </div>
             </div>
@@ -171,20 +166,19 @@
         <div class="dialog-box">
             <div class="dialog-header">
                 <h3 id="dialog-title">確認</h3>
-                <!-- 只保留一個 dialog-title 元素 -->
             </div>
             <div class="dialog-content">
                 <p id="dialog-message">您確定要執行此操作嗎？</p>
-                <!-- 只保留一個 dialog-message 元素 -->
             </div>
             <div class="dialog-actions">
-                <button id="dialog-confirm" class="primary-btn"><span id="dialog-confirm-label">確認</span></button>
-                <button id="dialog-cancel" class="secondary-btn"><span id="dialog-cancel-label">取消</span></button>
+                <button id="dialog-confirm" class="primary-btn">確認</button>
+                <button id="dialog-cancel" class="secondary-btn">取消</button>
             </div>
         </div>
     </div>
 
-    <script src="i18n.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/zh-tw.js"></script>
     <script src="index.js"></script>
 </body>
 </html>

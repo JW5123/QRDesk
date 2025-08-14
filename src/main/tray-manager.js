@@ -1,58 +1,11 @@
 const { Tray, Menu, nativeImage, app } = require('electron');
 const path = require('path');
-const fs = require('fs');
 
 class TrayManager {
     constructor(windowManager, dataStore) {
         this.windowManager = windowManager;
         this.dataStore = dataStore;
         this.tray = null;
-        this.translations = {};
-        this.currentLocale = 'en';
-        this.init();
-    }
-
-    async loadLocale() {
-        // Detect system locale
-        const locale = app.getLocale();
-        const supportedLocales = {
-            'zh-TW': 'zh-TW',
-            'zh-HK': 'zh-TW', 
-            'zh-CN': 'zh-CN',
-            'en': 'en',
-            'en-US': 'en',
-            'en-GB': 'en',
-            'ja': 'ja',
-            'ja-JP': 'ja'
-        };
-        
-        this.currentLocale = supportedLocales[locale] || (locale.split('-')[0] in supportedLocales ? supportedLocales[locale.split('-')[0]] : 'en');
-        
-        try {
-            const localeFile = path.join(__dirname, '..', 'locales', `${this.currentLocale}.json`);
-            const data = fs.readFileSync(localeFile, 'utf8');
-            this.translations = JSON.parse(data);
-        } catch (error) {
-            console.error('Failed to load locale file:', error);
-            // Fallback to English
-            try {
-                const localeFile = path.join(__dirname, '..', 'locales', 'en.json');
-                const data = fs.readFileSync(localeFile, 'utf8');
-                this.translations = JSON.parse(data);
-            } catch (fallbackError) {
-                console.error('Failed to load fallback locale:', fallbackError);
-                this.translations = {};
-            }
-        }
-    }
-
-    t(key) {
-        return this.translations[key] || key;
-    }
-
-    async init() {
-        await this.loadLocale();
-        this.createTray();
     }
 
     createTray() {
@@ -90,14 +43,14 @@ class TrayManager {
 
         const contextMenu = Menu.buildFromTemplate([
             {
-                label: this.t('showMainWindow'),
+                label: '顯示主視窗',
                 click: () => {
                     this.windowManager.showMainWindow();
                 }
             },
             { type: 'separator' },
             {
-                label: this.t('settings'),
+                label: '設定',
                 click: () => {
                     this.windowManager.showMainWindow();
                     setTimeout(() => {
@@ -110,9 +63,9 @@ class TrayManager {
             },
             { type: 'separator' },
             {
-                label: this.t('exit'),
+                label: '退出',
                 click: () => {
-                    // Force exit (even if running in background)
+                    // 完全退出（即使是背景執行）
                     app.exit(0);
                 }
             }
@@ -124,8 +77,8 @@ class TrayManager {
     setupTrayEvents() {
         if (!this.tray) return;
 
-        // Set tooltip text
-        this.tray.setToolTip(this.t('qrScreenshotTool'));
+        // 設定提示文字
+        this.tray.setToolTip('QR Code 截圖工具');
 
         // 左鍵點擊顯示主視窗
         this.tray.on('click', () => {

@@ -11,48 +11,7 @@ class ScreenshotHandler {
         this.dataStore = dataStore;
         this.qrAnalyzer = new QRAnalyzer();
         this.notificationService = new NotificationService();
-        this.translations = {};
-        this.currentLocale = 'en';
-        this.loadLocale();
         this.setupIpcHandlers();
-    }
-
-    async loadLocale() {
-        // Detect system locale
-        const locale = app.getLocale();
-        const supportedLocales = {
-            'zh-TW': 'zh-TW',
-            'zh-HK': 'zh-TW', 
-            'zh-CN': 'zh-CN',
-            'en': 'en',
-            'en-US': 'en',
-            'en-GB': 'en',
-            'ja': 'ja',
-            'ja-JP': 'ja'
-        };
-        
-        this.currentLocale = supportedLocales[locale] || (locale.split('-')[0] in supportedLocales ? supportedLocales[locale.split('-')[0]] : 'en');
-        
-        try {
-            const localeFile = path.join(__dirname, '..', 'locales', `${this.currentLocale}.json`);
-            const data = fs.readFileSync(localeFile, 'utf8');
-            this.translations = JSON.parse(data);
-        } catch (error) {
-            console.error('Failed to load locale file:', error);
-            // Fallback to English
-            try {
-                const localeFile = path.join(__dirname, '..', 'locales', 'en.json');
-                const data = fs.readFileSync(localeFile, 'utf8');
-                this.translations = JSON.parse(data);
-            } catch (fallbackError) {
-                console.error('Failed to load fallback locale:', fallbackError);
-                this.translations = {};
-            }
-        }
-    }
-
-    t(key) {
-        return this.translations[key] || key;
     }
 
     setupIpcHandlers() {
@@ -97,24 +56,24 @@ class ScreenshotHandler {
             const qrResult = await this.qrAnalyzer.analyzeQRCode(croppedImageData);
             
             if (qrResult.success) {
-                // Save scan record (async)
+                // 儲存掃描紀錄（異步）
                 const record = await this.dataStore.addScanRecord(qrResult.data);
-                console.log('Saved scan record:', record);
+                console.log('已儲存掃描紀錄:', record);
                 
-                // Notify main window to update
+                // 通知主視窗更新
                 const mainWindow = this.windowManager.getMainWindow();
                 if (mainWindow && !mainWindow.isDestroyed()) {
                     mainWindow.webContents.send('scan-record-added', record);
                 }
                 
-                this.notificationService.showSuccess(this.t('qrParseSuccess') || 'QR Code parsed successfully', qrResult.data, qrResult.data);
+                this.notificationService.showSuccess('QR Code 解析成功', qrResult.data, qrResult.data);
             } else {
-                this.notificationService.showError(this.t('qrParseFailed') || 'QR Code parsing failed', this.t('noValidQRFound') || 'No valid QR Code found');
+                this.notificationService.showError('QR Code 解析失敗', '未找到有效的 QR Code');
             }
 
         } catch (error) {
-            console.error('Screenshot or parsing error:', error);
-            this.notificationService.showError(this.t('error') || 'Error', (this.t('screenshotError') || 'Error occurred during screenshot or QR Code analysis: ') + error.message);
+            console.error('截圖或解析錯誤:', error);
+            this.notificationService.showError('錯誤', '截圖或 QR Code 解析過程中發生錯誤: ' + error.message);
         }
     }
 

@@ -19,19 +19,7 @@ class ScreenshotRenderer {
             right: document.getElementById('maskRight')
         };
         
-        this.initI18n();
         this.init();
-    }
-
-    async initI18n() {
-        await window.i18n.detectAndLoadLocale();
-        this.applyTranslations();
-    }
-
-    applyTranslations() {
-        const t = window.i18n.t;
-        document.title = t('screenshotAreaSelection');
-        this.instructions.textContent = t('screenshotInstructions');
     }
 
     init() {
@@ -220,11 +208,7 @@ class ScreenshotRenderer {
         if (bounds.width > SCREENSHOT_CONFIG.MIN_SIZE && bounds.height > SCREENSHOT_CONFIG.MIN_SIZE) {
             ipcRenderer.send('take-screenshot', bounds);
         } else {
-            if (width < 10 || height < 10) {
-            const t = window.i18n.t;
-            alert(t('invalidArea'));
-            return;
-        }
+            alert('請選擇一個有效的區域');
             this.resetMasks();
             if (this.screenBounds) {
                 this.instructions.style.display = 'block';
