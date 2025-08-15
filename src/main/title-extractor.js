@@ -1,488 +1,259 @@
-const https = require('https');
-const http = require('http');
+const { get } = require('https');
+const { get: httpGet } = require('http');
 const { URL } = require('url');
 
 class TitleExtractor {
-    constructor() {
-        // 設定 User-Agent 避免被網站阻擋
-        this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-        this.timeout = 10000; // 10 秒超時
-        this.maxContentLength = 1024 * 1024; // 1MB 最大內容大小
+    constructor(options = {}) {
+        this.timeout = options.timeout || 10000;
+        this.maxContentLength = options.maxContentLength || 2048 * 1024; // 增加到 2MB
+        this.userAgent = options.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
     }
 
     async extractTitle(url) {
         try {
-            // 驗證 URL
-            if (!this.isValidUrl(url)) {
-                return null;
-            }
-
-            const parsedUrl = new URL(url);
+            if (!this.isValidUrl(url)) return null;
             
-            // 特殊處理不同網站
-            const specialTitle = await this.handleSpecialSites(parsedUrl, url);
-            if (specialTitle) {
-                return specialTitle;
-            }
+            const parsedUrl = new URL(url);
+            const finalUrl = await this.resolveRedirects(url);
+            const html = await this.fetchHtml(finalUrl);
+            
+            if (!html) return null;
 
-            // 一般網站標題提取
-            const html = await this.fetchHtml(url);
-            if (!html) {
-                return null;
-            }
-
-            return this.parseTitle(html, parsedUrl);
-
+            const title = this.extractTitleFromHtml(html, new URL(finalUrl));
+            return title || parsedUrl.hostname;
         } catch (error) {
-            console.error('提取標題時發生錯誤:', error.message);
+            console.error(`標題提取錯誤: ${error.message}`);
             return null;
         }
     }
 
-    // 驗證 URL 是否有效
     isValidUrl(url) {
         try {
-            const parsed = new URL(url);
-            return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+            const { protocol } = new URL(url);
+            return ['http:', 'https:'].includes(protocol);
         } catch {
             return false;
         }
     }
 
-    // 處理特殊網站
-    async handleSpecialSites(parsedUrl, originalUrl) {
-        const hostname = parsedUrl.hostname.toLowerCase();
-
-        // Google Maps
-        if (hostname.includes('maps.google') || hostname.includes('goo.gl')) {
-            return await this.extractGoogleMapsTitle(originalUrl);
+    async resolveRedirects(url, maxRedirects = 5) {
+        let currentUrl = url;
+        
+        for (let i = 0; i < maxRedirects; i++) {
+            const redirectUrl = await this.getRedirectUrl(currentUrl);
+            if (!redirectUrl || redirectUrl === currentUrl) break;
+            currentUrl = redirectUrl;
         }
-
-        // YouTube
-        if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
-            return await this.extractYouTubeTitle(originalUrl);
-        }
-
-        // Facebook
-        if (hostname.includes('facebook.com') || hostname.includes('fb.me')) {
-            return await this.extractFacebookTitle(originalUrl);
-        }
-
-        return null;
+        
+        return currentUrl;
     }
 
-    // Google Maps 標題提取
-    async extractGoogleMapsTitle(url) {
-        try {
-            console.log('處理 Google Maps URL:', url);
+    async getRedirectUrl(url) {
+        return new Promise(resolve => {
+            const request = url.startsWith('https:') ? get : httpGet;
             
-            // 處理短網址
-            if (url.includes('goo.gl') || url.includes('maps.app.goo.gl')) {
-                console.log('展開短網址...');
-                url = await this.expandShortUrl(url);
-                console.log('展開後的 URL:', url);
-            }
-
-            const html = await this.fetchHtml(url);
-            if (!html) {
-                console.log('無法獲取 HTML 內容');
-                return null;
-            }
-
-            console.log('HTML 內容長度:', html.length);
-            
-            // 嘗試多種方式提取地點名稱
-            const patterns = [
-                // 新版 Google Maps 的 JSON-LD 結構
-                /"name":"([^"]+)"/i,
-                // 地點名稱的各種可能模式
-                /<h1[^>]*data-value="([^"]+)"/i,
-                /<h1[^>]*>([^<]+)<\/h1>/i,
-                // meta property
-                /<meta property="og:title" content="([^"]+)"/i,
-                /<meta name="twitter:title" content="([^"]+)"/i,
-                // aria-label
-                /aria-label="([^"]+)"/i,
-                // data-value 屬性
-                /data-value="([^"]+)"/i,
-                // title 標籤
-                /<title[^>]*>([^<]+)<\/title>/i,
-                // JSON 結構中的地點名稱
-                /"title":"([^"]+)"/i,
-                // 其他可能的模式
-                /place_name['"]\s*:\s*['"]([^'"]+)['"]/i
-            ];
-
-            for (let i = 0; i < patterns.length; i++) {
-                const pattern = patterns[i];
-                const match = html.match(pattern);
-                console.log(`Pattern ${i + 1}: ${match ? '找到' : '未找到'}`);
-                
-                if (match && match[1]) {
-                    let title = match[1].trim();
-                    
-                    // 跳過無意義的標題
-                    if (title.length < 2 || 
-                        title.toLowerCase().includes('google') && title.length < 15 ||
-                        title.toLowerCase().includes('maps') && title.length < 10) {
-                        console.log(`跳過無意義的標題: ${title}`);
-                        continue;
-                    }
-                    
-                    // 清理 Google Maps 特有的後綴
-                    title = title.replace(/\s*-\s*Google\s*(地圖|Maps).*$/i, '');
-                    title = title.replace(/\s*·\s*Google\s*(地圖|Maps).*$/i, '');
-                    title = title.replace(/\s*\|\s*Google\s*(地圖|Maps).*$/i, '');
-                    title = title.replace(/Google\s*(地圖|Maps)/i, '').trim();
-                    
-                    // 解碼 HTML 實體
-                    title = this.decodeHtmlEntities(title);
-                    
-                    if (title && title.length > 0) {
-                        console.log('提取到的標題:', title);
-                        return `📍 ${title}`;
-                    }
-                }
-            }
-
-            // 如果都找不到，嘗試從 URL 解析
-            console.log('從 URL 解析地點名稱...');
-            const urlPatterns = [
-                /\/place\/([^\/\?&]+)/,
-                /\/data=[^!]*![^!]*![^!]*!([^!]+)!/,
-                /q=([^&]+)/
-            ];
-            
-            for (const urlPattern of urlPatterns) {
-                const urlMatch = url.match(urlPattern);
-                if (urlMatch && urlMatch[1]) {
-                    let placeName = decodeURIComponent(urlMatch[1]).replace(/\+/g, ' ');
-                    placeName = placeName.replace(/[,\s]+$/, ''); // 移除尾部逗號和空格
-                    console.log('從 URL 提取到:', placeName);
-                    return `📍 ${placeName}`;
-                }
-            }
-
-            console.log('無法提取 Google Maps 標題');
-            return null;
-        } catch (error) {
-            console.error('Google Maps 標題提取失敗:', error.message);
-            return null;
-        }
-    }
-
-    // YouTube 標題提取
-    async extractYouTubeTitle(url) {
-        try {
-            console.log('處理 YouTube URL:', url);
-            
-            const html = await this.fetchHtml(url);
-            if (!html) {
-                console.log('無法獲取 HTML 內容');
-                return null;
-            }
-
-            console.log('HTML 內容長度:', html.length);
-
-            const patterns = [
-                // YouTube 的 JSON-LD 結構
-                /"videoDetails":{"videoId":"[^"]*","title":"([^"]+)"/i,
-                // meta property (最可靠)
-                /<meta property="og:title" content="([^"]+)"/i,
-                /<meta name="twitter:title" content="([^"]+)"/i,
-                // title 標籤
-                /<title[^>]*>([^<]+)<\/title>/i,
-                // YouTube 特定的 JSON 結構
-                /"title":{"runs":\[{"text":"([^"]+)"/i,
-                /"title":"([^"]+)"/i,
-                // 其他可能的模式
-                /ytInitialPlayerResponse[^{]*{[^}]*"title":"([^"]+)"/i
-            ];
-
-            for (let i = 0; i < patterns.length; i++) {
-                const pattern = patterns[i];
-                const match = html.match(pattern);
-                console.log(`YouTube Pattern ${i + 1}: ${match ? '找到' : '未找到'}`);
-                
-                if (match && match[1]) {
-                    let title = match[1].trim();
-                    
-                    // 跳過無意義的標題
-                    if (title.toLowerCase() === 'youtube' || title.length < 3) {
-                        console.log(`跳過無意義的標題: ${title}`);
-                        continue;
-                    }
-                    
-                    // 清理 YouTube 特有的後綴
-                    title = title.replace(/\s*-\s*YouTube.*$/i, '');
-                    title = title.replace(/\s*\|\s*YouTube.*$/i, '');
-                    
-                    // 解碼 HTML 實體和 Unicode 轉義
-                    title = this.decodeHtmlEntities(title);
-                    title = this.decodeUnicodeEscapes(title);
-                    
-                    if (title && title.length > 0) {
-                        console.log('提取到的 YouTube 標題:', title);
-                        return `🎥 ${title}`;
-                    }
-                }
-            }
-
-            console.log('無法提取 YouTube 標題');
-            return null;
-        } catch (error) {
-            console.error('YouTube 標題提取失敗:', error.message);
-            return null;
-        }
-    }
-
-    // Facebook 標題提取
-    async extractFacebookTitle(url) {
-        try {
-            const html = await this.fetchHtml(url);
-            if (!html) return null;
-
-            const patterns = [
-                /<meta property="og:title" content="([^"]+)"/i,
-                /<title>([^<]+)<\/title>/i
-            ];
-
-            for (const pattern of patterns) {
-                const match = html.match(pattern);
-                if (match && match[1]) {
-                    let title = match[1].trim();
-                    title = title.replace(/\s*\|\s*Facebook.*$/i, '');
-                    if (title && title.length > 0) {
-                        return `👥 ${title}`;
-                    }
-                }
-            }
-
-            return null;
-        } catch (error) {
-            console.error('Facebook 標題提取失敗:', error.message);
-            return null;
-        }
-    }
-
-    // 擴展短網址
-    async expandShortUrl(shortUrl) {
-        return new Promise((resolve) => {
-            console.log('展開短網址:', shortUrl);
-            
-            const urlModule = shortUrl.startsWith('https:') ? https : http;
-            
-            const req = urlModule.request(shortUrl, {
+            const req = request(url, { 
                 method: 'HEAD',
                 timeout: this.timeout,
-                headers: {
-                    'User-Agent': this.userAgent,
-                    'Accept': '*/*'
-                }
-            }, (res) => {
-                console.log('短網址回應狀態碼:', res.statusCode);
-                console.log('Location header:', res.headers.location);
-                
+                headers: { 'User-Agent': this.userAgent }
+            }, res => {
                 if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                    let expandedUrl = res.headers.location;
-                    // 處理相對 URL
-                    if (expandedUrl.startsWith('/')) {
-                        const originalUrl = new URL(shortUrl);
-                        expandedUrl = `${originalUrl.protocol}//${originalUrl.host}${expandedUrl}`;
-                    }
-                    console.log('展開的 URL:', expandedUrl);
-                    resolve(expandedUrl);
+                    resolve(this.resolveUrl(url, res.headers.location));
                 } else {
-                    console.log('沒有重定向，使用原 URL');
-                    resolve(shortUrl);
+                    resolve(null);
                 }
-            });
-
-            req.on('error', (error) => {
-                console.error('展開短網址失敗:', error.message);
-                resolve(shortUrl);
             });
             
-            req.on('timeout', () => {
-                console.log('展開短網址超時');
-                req.destroy();
-                resolve(shortUrl);
-            });
-
+            req.on('error', () => resolve(null));
+            req.on('timeout', () => { req.destroy(); resolve(null); });
             req.end();
         });
     }
 
-    // 獲取 HTML 內容
+    resolveUrl(base, relative) {
+        try {
+            return new URL(relative, base).href;
+        } catch {
+            return relative;
+        }
+    }
+
     async fetchHtml(url) {
-        return new Promise((resolve) => {
-            console.log('獲取 HTML:', url);
-            
-            const urlModule = url.startsWith('https:') ? https : http;
-            
-            const req = urlModule.request(url, {
+        return new Promise(resolve => {
+            const request = url.startsWith('https:') ? get : httpGet;
+            const options = {
                 timeout: this.timeout,
                 headers: {
                     'User-Agent': this.userAgent,
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                    'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8',
+                    'Accept-Language': 'zh-TW,zh;q=0.9,en;q=0.8,ja;q=0.7',
                     'Accept-Encoding': 'identity',
-                    'Cache-Control': 'no-cache',
-                    'Connection': 'close'
+                    'Cache-Control': 'no-cache'
                 }
-            }, (res) => {
-                console.log('HTTP 狀態碼:', res.statusCode);
-                
-                // 處理重定向
-                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                    console.log('重定向到:', res.headers.location);
-                    req.destroy();
-                    // 遞歸處理重定向
-                    this.fetchHtml(res.headers.location).then(resolve);
-                    return;
-                }
-                
+            };
+            
+            const req = request(url, options, res => {
                 if (res.statusCode !== 200) {
-                    console.log('HTTP 錯誤狀態:', res.statusCode);
-                    resolve(null);
-                    return;
+                    console.log(`HTTP 狀態: ${res.statusCode}`);
+                    return resolve(null);
                 }
                 
-                // 檢查內容長度
-                const contentLength = parseInt(res.headers['content-length'] || '0');
-                if (contentLength > this.maxContentLength) {
-                    console.log('內容太大:', contentLength);
-                    resolve(null);
-                    return;
-                }
-
                 let data = '';
                 let receivedLength = 0;
-
-                res.on('data', (chunk) => {
+                
+                res.on('data', chunk => {
                     receivedLength += chunk.length;
                     if (receivedLength > this.maxContentLength) {
-                        console.log('接收的內容超過限制');
                         req.destroy();
-                        resolve(null);
-                        return;
+                        return resolve(data); // 返回已收到的部分
                     }
-                    data += chunk;
                     
-                    // 如果已經找到足夠的標題資訊，可以提前結束
-                    if (data.includes('</title>') && data.includes('</head>')) {
-                        console.log('已找到標題資訊，提前結束');
-                        req.destroy();
-                        resolve(data);
-                        return;
-                    }
-                });
-
-                res.on('end', () => {
-                    console.log('HTML 獲取完成，長度:', data.length);
-                    resolve(data);
+                    data += chunk;
                 });
                 
-                res.on('error', (error) => {
-                    console.error('接收資料錯誤:', error.message);
-                    resolve(null);
-                });
+                res.on('end', () => resolve(data));
+                res.on('error', () => resolve(data || null));
             });
-
-            req.on('error', (error) => {
-                console.error('請求錯誤:', error.message);
+            
+            req.on('error', err => {
+                console.error(`請求錯誤: ${err.message}`);
                 resolve(null);
             });
-
-            req.on('timeout', () => {
+            req.on('timeout', () => { 
                 console.log('請求超時');
-                req.destroy();
-                resolve(null);
+                req.destroy(); 
+                resolve(null); 
             });
-
             req.end();
         });
     }
 
-    // 解碼 HTML 實體
-    decodeHtmlEntities(str) {
-        if (!str) return str;
-        
-        return str
-            .replace(/&quot;/g, '"')
-            .replace(/&apos;/g, "'")
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&amp;/g, '&')
-            .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
-            .replace(/&#x([a-fA-F0-9]+);/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
-    }
+    extractTitleFromHtml(html, parsedUrl) {
+        // 通用標題提取模式 - 按成功率排序
+        const patterns = [
+            // Open Graph (最可靠)
+            /<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i,
+            /<meta\s+content=["']([^"']+)["']\s+property=["']og:title["']/i,
+            
+            // Twitter Cards
+            /<meta\s+name=["']twitter:title["']\s+content=["']([^"']+)["']/i,
+            /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:title["']/i,
+            
+            // JSON-LD 結構化數據
+            /"name"\s*:\s*"([^"]+)"/i,
+            /"title"\s*:\s*"([^"]+)"/i,
+            
+            // 傳統 title 標籤
+            /<title[^>]*>([^<]+)<\/title>/i,
+            
+            // H1 標籤
+            /<h1[^>]*>([^<]+)<\/h1>/i,
+            
+            // 特殊屬性
+            /data-title=["']([^"']+)["']/i,
+            /aria-label=["']([^"']+)["']/i,
+            
+            // URL 中的標題 (適用於 Google Maps 等)
+            /[?&]q=([^&]+)/i,
+            /\/place\/([^\/\?&]+)/i,
+            /[?&]title=([^&]+)/i
+        ];
 
-    // 解碼 Unicode 轉義序列
-    decodeUnicodeEscapes(str) {
-        if (!str) return str;
-        
-        return str.replace(/\\u([a-fA-F0-9]{4})/g, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
-    }
-
-    // 解析 HTML 中的標題
-    parseTitle(html, parsedUrl) {
-        try {
-            // 優先順序：og:title > title 標籤
-            const patterns = [
-                /<meta property="og:title" content="([^"]+)"/i,
-                /<meta name="twitter:title" content="([^"]+)"/i,
-                /<title>([^<]+)<\/title>/i
-            ];
-
-            for (const pattern of patterns) {
-                const match = html.match(pattern);
-                if (match && match[1]) {
-                    let title = this.cleanTitle(match[1]);
-                    if (title && title.length > 0) {
-                        return title;
+        for (let i = 0; i < patterns.length; i++) {
+            const pattern = patterns[i];
+            const match = html.match(pattern) || parsedUrl.href.match(pattern);
+            
+            if (match && match[1]) {
+                let title = match[1].trim();
+                
+                // URL 參數需要解碼
+                if (i >= patterns.length - 3) {
+                    title = this.decodeUrlComponent(title);
+                }
+                
+                // 驗證標題有效性
+                if (this.isValidTitle(title)) {
+                    const cleanedTitle = this.cleanTitle(title);
+                    if (cleanedTitle) {
+                        console.log(`Pattern ${i + 1} 成功提取: ${cleanedTitle}`);
+                        return cleanedTitle;
                     }
                 }
             }
+        }
+        
+        console.log('未找到有效標題');
+        return null;
+    }
 
-            // 如果都找不到，返回網域名稱
-            return parsedUrl.hostname;
-        } catch (error) {
-            return parsedUrl.hostname;
+    decodeUrlComponent(str) {
+        try {
+            return decodeURIComponent(str.replace(/\+/g, ' '));
+        } catch {
+            return str;
         }
     }
 
-    // 清理標題
+    isValidTitle(title) {
+        if (!title || typeof title !== 'string') return false;
+        
+        title = title.trim();
+        
+        // 基本長度檢查
+        if (title.length < 2 || title.length > 200) return false;
+        
+        // 排除無意義的標題
+        const invalidPatterns = [
+            /^(google|youtube|facebook|twitter|instagram)$/i,
+            /^[\s\-_=]+$/,
+            /^(404|error|not found)$/i,
+            /^[0-9]+$/,
+            /^(home|main|index)$/i
+        ];
+        
+        return !invalidPatterns.some(pattern => pattern.test(title));
+    }
+
     cleanTitle(title) {
         if (!title) return '';
         
         // 解碼 HTML 實體和 Unicode
         title = this.decodeHtmlEntities(title);
-        title = this.decodeUnicodeEscapes(title);
         
-        // 移除多餘的空白字符
-        title = title.replace(/\s+/g, ' ')
-            .replace(/[\r\n\t]/g, ' ')
-            .trim();
+        // 清理多餘空白
+        title = title.replace(/\s+/g, ' ').trim();
         
-        // 移除常見的網站後綴
-        const suffixesToRemove = [
-            ' - Google 地圖',
-            ' - YouTube',
-            ' - Google Maps',
-            ' | Facebook',
-            '\\s*-\\s*.*$'  // 移除破折號後的內容（保守一點，先不用這個）
+        // 移除常見網站後綴 (更積極的清理)
+        const cleanPatterns = [
+            / - Google (地圖|Maps).*$/i,
+            / - YouTube.*$/i,
+            / \| Facebook.*$/i,
+            / - Google.*$/i,
+            / \| Twitter.*$/i,
+            / - 首頁.*$/i,
+            / - Home.*$/i,
+            /\s*[\|\-]\s*$/, // 移除尾部的分隔符
         ];
         
-        for (let i = 0; i < suffixesToRemove.length - 1; i++) {
-            const suffix = suffixesToRemove[i];
-            if (title.endsWith(suffix)) {
-                title = title.slice(0, -suffix.length).trim();
-                break;
-            }
+        for (const pattern of cleanPatterns) {
+            title = title.replace(pattern, '').trim();
         }
         
-        return title.substring(0, 100); // 限制長度
+        return title.substring(0, 100);
+    }
+
+    decodeHtmlEntities(str) {
+        const entities = {
+            '&amp;': '&', '&lt;': '<', '&gt;': '>', 
+            '&quot;': '"', '&apos;': "'", '&#39;': "'",
+            '&nbsp;': ' '
+        };
+        
+        return str
+            .replace(/&(amp|lt|gt|quot|apos|#39|nbsp);/gi, match => entities[match.toLowerCase()] || match)
+            .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec)))
+            .replace(/&#x([a-f0-9]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+            .replace(/\\u([a-f0-9]{4})/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
     }
 }
 

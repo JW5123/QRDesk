@@ -13,6 +13,7 @@ class WindowManager {
     createMainWindow() {
         const settings = this.dataStore.getSettings();
         const { width, height } = settings.lastWindowSize || WINDOW_CONFIG.MAIN;
+        const isMaximized = settings.isMaximized || false;
 
         this.mainWindow = new BrowserWindow({
             width,
@@ -22,7 +23,7 @@ class WindowManager {
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
-                preload: path.join(__dirname, '../renderer/main/preload.js')
+                preload: path.join(__dirname, '../preload/preload.js')
             },
             show: false,
             skipTaskbar: false,
@@ -32,7 +33,14 @@ class WindowManager {
         });
 
         this.mainWindow.loadFile(path.join(__dirname, '../renderer/main/index.html'));
-        
+
+        // 還原最大化狀態
+        this.mainWindow.once('ready-to-show', () => {
+            if (isMaximized) {
+                this.mainWindow.maximize();
+            }
+        });
+
         // 監聽視窗事件
         this.setupMainWindowEvents();
     }
@@ -43,18 +51,33 @@ class WindowManager {
         // 視窗關閉事件
         this.mainWindow.on('close', (event) => {
             const settings = this.dataStore.getSettings();
-            
             if (settings.exitToTray) {
                 event.preventDefault();
                 this.mainWindow.hide();
             } else {
-                // 直接退出
                 require('electron').app.quit();
             }
         });
 
         // 儲存視窗大小
         this.mainWindow.on('resize', () => {
+            if (!this.mainWindow.isMaximized()) {
+                const bounds = this.mainWindow.getBounds();
+                this.dataStore.setSetting('lastWindowSize', {
+                    width: bounds.width,
+                    height: bounds.height
+                });
+                this.dataStore.setSetting('isMaximized', false);
+            }
+        });
+
+        // 最大化/還原事件
+        this.mainWindow.on('maximize', () => {
+            this.dataStore.setSetting('isMaximized', true);
+        });
+        this.mainWindow.on('unmaximize', () => {
+            this.dataStore.setSetting('isMaximized', false);
+            // 還原時也儲存目前大小
             const bounds = this.mainWindow.getBounds();
             this.dataStore.setSetting('lastWindowSize', {
                 width: bounds.width,
