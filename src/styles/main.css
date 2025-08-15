@@ -346,8 +346,13 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 4px;
     background: var(--bg-primary);
+    color: var(--text-primary);
     cursor: pointer;
     transition: all 0.2s;
+}
+
+.page-btn i {
+    color: var(--text-primary);
 }
 
 .page-btn:hover:not(:disabled) {
@@ -357,6 +362,10 @@ body {
 .page-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.page-btn:disabled i {
+    opacity: 0.5;
 }
 
 .page-info {

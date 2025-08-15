@@ -6,15 +6,14 @@ export class RecordRenderer {
         this.notificationManager = notificationManager;
     }
 
-    /**
-     * 渲染記錄列表
-     */
+    // 渲染記錄列表
     render(records) {
         const recordsList = document.getElementById('records-list');
         
         if (records.length === 0) {
             recordsList.innerHTML = `
                 <div class="no-records">
+                    <i class="fa-solid fa-inbox fa-4x" style="margin-bottom: 10px;"></i>
                     <p>目前沒有掃描紀錄</p>
                 </div>
             `;
@@ -28,9 +27,7 @@ export class RecordRenderer {
         this.bindRecordEvents();
     }
 
-    /**
-     * 渲染單個記錄
-     */
+    // 渲染單個記錄
     renderRecord(record) {
         const displayTitle = record.title || (this.isUrl(record.data) ? new URL(record.data).hostname : record.data.substring(0, 50));
         
@@ -60,9 +57,7 @@ export class RecordRenderer {
         `;
     }
 
-    /**
-     * 判斷是否為URL
-     */
+    // 判斷是否為URL
     isUrl(text) {
         try {
             new URL(text);
@@ -72,9 +67,7 @@ export class RecordRenderer {
         }
     }
 
-    /**
-     * 綁定記錄操作事件
-     */
+    // 綁定記錄操作事件
     bindRecordEvents() {
         // 複製按鈕
         document.querySelectorAll('.copy-btn').forEach(btn => {
@@ -116,9 +109,7 @@ export class RecordRenderer {
         });
     }
 
-    /**
-     * 獲取記錄資料
-     */
+    // 獲取記錄資料
     getRecordData(id) {
         const recordElement = document.querySelector(`[data-id="${id}"]`);
         if (recordElement) {
@@ -128,9 +119,7 @@ export class RecordRenderer {
         return null;
     }
 
-    /**
-     * 刪除記錄
-     */
+    // 刪除記錄
     async deleteRecord(id) {
         // 呼叫主程式的記錄管理器的刪除方法
         if (window.app && window.app.recordManager && window.app.recordManager.deleteRecord) {
